@@ -15,21 +15,19 @@ import transformers
 
 
 class HOExpertObserver:
-    """
-    Attaches forward hooks to MoE expert modules to collect second-order
-    expert interaction statistics during inference.
-
-    Supported architectures: any HuggingFace MoE model where MoE layers
-    have ``layer.mlp.experts`` with ``gate_up_proj``, ``down_proj``, and
-    ``act_fn`` attributes (e.g. Qwen3 MoE, Qwen3.5 MoE, GLM-4.5).
-
-    Args:
-        model: A loaded HuggingFace CausalLM model.
-        stats_on_gpu: If True, place accumulator tensors on the least-used
-            GPU for faster computation. If False, use CPU.
-    """
-
     def __init__(self, model, stats_on_gpu=True):
+        """
+        Attaches forward hooks to MoE expert modules to collect second-order
+        expert interaction statistics during inference.
+        Supported architectures: HuggingFace MoE models where MoE layers have
+        `layer.mlp.experts` with stacked `gate_up_proj` and `down_proj` tensors
+        (e.g. Qwen3 MoE, Qwen3.5 MoE, GLM-4.5).
+        Arguments:
+            `model`: a loaded HuggingFace CausalLM model
+            `stats_on_gpu`: if True, place accumulated tensors on the least-used
+                GPU for faster computation; if False, use CPU; this is useful
+                for models that barely fit on GPU
+        """
         self.hooks = []
         self.stats = {}
 
@@ -45,7 +43,9 @@ class HOExpertObserver:
         self._install_hooks(model)
 
     def _install_hooks(self, model):
-        """Finds MoE layers and registers stat-collecting hooks."""
+        """
+        Finds MoE layers and registers stat-collecting hooks.
+        """
         if hasattr(model, "model"):
             layers = model.model.layers
         else:
@@ -58,9 +58,11 @@ class HOExpertObserver:
         ]
         for layer_i, moe_block in enumerate(moe_blocks):
             experts = moe_block.experts
-            if not hasattr(experts, "gate_up_proj") or not hasattr(experts, "down_proj"):
+            if not hasattr(experts, "gate_up_proj") or \
+                not hasattr(experts, "down_proj"):
                 raise ValueError(
-                    "Expected experts module with `gate_up_proj` and `down_proj`"
+                    "Expected experts module with "
+                    "`gate_up_proj` and `down_proj`"
                 )
             if experts.gate_up_proj.dim() != 3 or experts.down_proj.dim() != 3:
                 raise ValueError(
@@ -73,8 +75,9 @@ class HOExpertObserver:
             self.hooks.append(hook)
 
     def _make_hook(self, layer_i):
-        """Creates a hook function that collects expert-interaction stats."""
-
+        """
+        Creates a hook function that collects expert-interaction stats.
+        """
         @torch.no_grad()
         def hook_fn(module, args, output):
             hidden_states = args[0]  # num_tokens x hidden_dim
@@ -213,11 +216,16 @@ class HOExpertObserver:
         return hook_fn
 
     def reset(self):
-        """Clears accumulated statistics for a fresh calibration run."""
+        """
+        Clears accumulated statistics for a fresh calibration run.
+        """
         self.stats.clear()
 
     def get_stats(self):
-        """Returns collected stats as a dict of layer_i -> dict of numpy arrays."""
+        """
+        Returns collected stats as a dictionary mapping layer index to
+        dictionary of NumPy arrays.
+        """
         return {
             layer_i: {
                 key: val.cpu().numpy() if isinstance(val, torch.Tensor) else val
@@ -227,7 +235,9 @@ class HOExpertObserver:
         }
 
     def close(self):
-        """Removes hooks and frees memory."""
+        """
+        Removes hooks and frees memory.
+        """
         for hook in self.hooks:
             hook.remove()
         self.hooks.clear()
@@ -235,26 +245,22 @@ class HOExpertObserver:
 
 
 def calibrate(
-    model_path,
-    prompts,
-    out_path,
-    limit=None,
-    seed=20260423,
-    stats_on_cpu=False,
-    max_prompt_length=None,
+    model_path, prompts, out_path, limit=None, seed=20260423,
+    stats_on_cpu=False, max_prompt_length=None
 ):
     """
-    Run calibration on a MoE model to collect the F-matrix.
-
-    Args:
-        model_path: Path to a HuggingFace MoE model directory.
-        prompts: A list of strings (will be tokenized) or a list of lists of
-            ints (pre-tokenized prompt token IDs).
-        out_path: Path to save the output HDF5 file.
-        limit: If set, subsample this many prompts (or this fraction if < 1).
-        seed: Random seed for subsampling.
-        stats_on_cpu: If True, keep accumulators on CPU.
-        max_prompt_length: Truncate prompts longer than this (in tokens).
+    Runs calibration on a MoE model to collect statistics needed to construct
+    the F-matrix.
+    Arguments:
+        `model_path`: path to a HuggingFace MoE model directory
+        `prompts`: a list of strings (will be tokenized), or a list of lists of
+            ints (pre-tokenized prompt token IDs)
+        `out_path`: path to save the output HDF5 file
+        `limit`: if set, subsample this many prompts (or this fraction if < 1);
+            leave unset to use all prompts
+        `seed`: random seed for subsampling
+        `stats_on_cpu`: if True, keep accumulated tensors on CPU
+        `max_prompt_length`: truncate prompts longer than this (in tokens)
     """
     print("Loading tokenizer and model from %s ..." % model_path)
     tokenizer = transformers.AutoTokenizer.from_pretrained(model_path)

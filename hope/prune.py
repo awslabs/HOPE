@@ -1,9 +1,9 @@
 """
 Model pruning module.
 
-Applies a pruning set (JSON mapping layer indices to expert indices) to a
-HuggingFace MoE model checkpoint, producing a smaller model with fewer
-experts per layer.
+Applies a prune-set (JSON mapping layer indices to expert indices) to a
+HuggingFace MoE model checkpoint, producing a smaller model with fewer experts
+per layer.
 """
 
 import os
@@ -27,15 +27,13 @@ EXTRA_FILES_TO_LINK = [
 
 def load_pruneset(path, num_moe_layers):
     """
-    Load and validate a pruning set JSON file.
-
-    Args:
-        path: Path to JSON file mapping layer indices to lists of expert
-            indices to prune.
-        num_moe_layers: Expected number of MoE layers.
-
-    Returns:
-        Dict mapping int layer indices to sorted lists of int expert indices.
+    Loads and validates a prune-set JSON file.
+    Arguments:
+        `path`: path to JSON file mapping layer indices to lists of expert
+            indices to prune
+        `num_moe_layers`: expected number of MoE layers
+    Returns a dictionary mapping layer indices to sorted lists of expert indices
+    (all ints).
     """
     with open(path, "r") as f:
         pruneset = {
@@ -58,14 +56,11 @@ def load_pruneset(path, num_moe_layers):
 
 def _load_model(model_path):
     """
-    Load the model, handling multimodal models (e.g. Qwen3.5) that need
-    the full model class to preserve the vision encoder.
-
-    Args:
-        model_path: Path to HuggingFace model directory.
-
-    Returns:
-        The loaded model.
+    Loads the model, including handling multimodal models (e.g. Qwen3.5) that
+    need the full model class to preserve the vision encoder.
+    Arguments:
+        `model_path`: path to HuggingFace model directory
+    Returns the loaded model.
     """
     config = transformers.AutoConfig.from_pretrained(
         model_path, trust_remote_code=True
@@ -84,14 +79,11 @@ def _load_model(model_path):
 
 def _get_layers_and_config(model):
     """
-    Extract the transformer layers and MoE config from a model, handling
-    different model architectures.
-
-    Args:
-        model: A loaded HuggingFace model.
-
-    Returns:
-        Tuple of (layers, moe_config).
+    Extracts the layers and config from an MoE model, handling different
+    supported model architectures.
+    Arguments:
+        `model`: a loaded HuggingFace model
+    Returns a tuple of: iterable of layers, and config object.
     """
     arch = model.__class__.__name__
     if arch == "Qwen3_5MoeForConditionalGeneration":
@@ -106,12 +98,11 @@ def _get_layers_and_config(model):
 
 def prune_moe_layer(moe_block, retain_inds):
     """
-    Prune a single MoE layer in place, keeping only the specified experts.
-
-    Args:
-        moe_block: A SparseMoeBlock (``layer.mlp``) with ``.experts`` and
-            ``.gate`` attributes.
-        retain_inds: List of expert indices to retain.
+    Prunes a single MoE layer in place, keeping only the specified experts.
+    Arguments:
+        `moe_block`: a SparseMoeBlock object with `.experts` and `.gate`
+            attributes
+        `retain_inds`: list of expert indices to retain
     """
     experts = moe_block.experts
     router = moe_block.gate
@@ -145,7 +136,12 @@ def prune_moe_layer(moe_block, retain_inds):
 
 
 def _link_extra_files(src_path, dst_path):
-    """Symlink auxiliary files from the source model directory."""
+    """
+    Symlinks auxiliary files (defined in `EXTRA_FILES_TO_LINK`) from the given
+    source directory to the given destination directory. Skips files which do
+    not exist at the source directory, and overwrites files which already exist
+    at the destination directory.
+    """
     for fname in EXTRA_FILES_TO_LINK:
         src = os.path.realpath(os.path.join(src_path, fname))
         dst = os.path.join(dst_path, fname)
@@ -158,14 +154,13 @@ def _link_extra_files(src_path, dst_path):
 
 def prune_model(src_model_path, pruneset_path, dst_model_path):
     """
-    Load a MoE model, apply a pruning set, and save the pruned checkpoint.
+    Loads a MoE model, applies a pruning set, and saves the pruned checkpoint.
     For multimodal models (e.g. Qwen3.5), loads the full model including
     the vision encoder so the saved checkpoint is complete.
-
-    Args:
-        src_model_path: Path to the original HuggingFace model.
-        pruneset_path: Path to the JSON pruning set.
-        dst_model_path: Path to save the pruned model.
+    Arguments:
+        `src_model_path`: path to the original HuggingFace model
+        `pruneset_path`: path to the JSON pruning set
+        `dst_model_path`: path to save the pruned model
     """
     print("Loading model from %s ..." % src_model_path)
     model = _load_model(src_model_path)

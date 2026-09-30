@@ -2,10 +2,10 @@
 CLI entry point for HOPE expert pruning.
 
 Usage:
-    hope calibrate --model-path <path> --prompts <file> --out-path <path>
-    hope solve --obs-path <path> --prune-frac 0.25 --out-path <path>
-    hope baselines --obs-path <path> --prune-frac 0.25 --method reap --out-path <path>
-    hope prune --model-path <path> --pruneset-path <path> --out-path <path>
+    hope calibrate --model-path <p> --prompts <f> --out-path <p>
+    hope solve --obs-path <p> --prune-frac 0.25 --out-path <p>
+    hope baselines --obs-path <p> --prune-frac 0.25 --method reap --out-path <p>
+    hope prune --model-path <p> --pruneset-path <p> --out-path <p>
 """
 
 import click
@@ -13,31 +13,50 @@ import click
 
 @click.group()
 def cli():
-    """HOPE: Higher-Order Pruning of Experts for MoE LLMs."""
+    """
+    HOPE: Higher-Order Pruning of Experts for MoE LLMs.
+    """
     pass
 
 
 @cli.command()
-@click.option("--model-path", required=True,
-              type=click.Path(exists=True, file_okay=False),
-              help="Path to the HuggingFace MoE model.")
-@click.option("--prompts", required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help="Path to prompts file: .json (list of strings, or list of "
-              "token ID lists) or .txt (one prompt per line).")
-@click.option("--out-path", required=True,
-              help="Output HDF5 path for observations.")
-@click.option("--limit", type=float, default=None,
-              help="Subsample: fraction (<1) or count (>=1) of prompts.")
-@click.option("--seed", type=int, default=20260423,
-              help="Random seed for subsampling.")
-@click.option("--stats-on-cpu", is_flag=True,
-              help="Keep accumulators on CPU instead of GPU.")
-@click.option("--max-prompt-length", type=int, default=None,
-              help="Truncate prompts longer than this (tokens).")
-def calibrate(model_path, prompts, out_path, limit, seed, stats_on_cpu,
-              max_prompt_length):
-    """Collect expert interaction statistics (F-matrix) from a model."""
+@click.option(
+    "--model-path", required=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="path to the HuggingFace MoE model"
+)
+@click.option(
+    "--prompts", required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to prompts file; can be .json (list of strings or token ID lists) or .txt (one string per line)"
+)
+@click.option(
+    "--out-path", required=True,
+    help="output HDF5 path for observations"
+)
+@click.option(
+    "--limit", type=float, default=None,
+    help="subsample prompts; can be given as a fraction if < 1, or count if >= 1"
+)
+@click.option(
+    "--seed", type=int, default=20260423,
+    help="random seed for subsampling prompts"
+)
+@click.option(
+    "--stats-on-cpu", is_flag=True,
+    help="if specified, keep accumulators on CPU instead of GPU"
+)
+@click.option(
+    "--max-prompt-length", type=int, default=None,
+    help="truncate prompts longer than this (in tokens)"
+)
+def calibrate(
+    model_path, prompts, out_path, limit, seed,
+    stats_on_cpu, max_prompt_length,
+):
+    """
+    Collect expert interaction statistics (F-matrix).
+    """
     import json
 
     if prompts.endswith(".json"):
@@ -45,7 +64,9 @@ def calibrate(model_path, prompts, out_path, limit, seed, stats_on_cpu,
             prompt_data = json.load(f)
     else:
         with open(prompts) as f:
-            prompt_data = [line.strip() for line in f if line.strip()]
+            prompt_data = [
+                line.strip() for line in f if line.strip()
+            ]
 
     from hope.calibrate import calibrate as _calibrate
     _calibrate(
@@ -56,60 +77,96 @@ def calibrate(model_path, prompts, out_path, limit, seed, stats_on_cpu,
 
 
 @cli.command()
-@click.option("--obs-path", required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help="Path to HDF5 observations from calibration.")
-@click.option("--prune-frac", type=float, default=None,
-              help="Fraction of experts to prune per layer (0 < frac < 1); conflicts with `--prune-num`.")
-@click.option("--prune-num", type=int, default=None,
-              help="Number of experts to prune per layer; conflicts with `--prune-frac`.")
-@click.option("--out-path", required=True,
-              help="Output JSON path for the pruning set.")
-@click.option("--task-id", default=None,
-              help="Task ID in the HDF5 (default: first available).")
+@click.option(
+    "--obs-path", required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to HDF5 observations from calibration"
+)
+@click.option(
+    "--prune-frac", type=float, default=None,
+    help="fraction of experts to prune per layer; conflicts with --prune-num"
+)
+@click.option(
+    "--prune-num", type=int, default=None,
+    help="number of experts to prune per layer; conflicts with --prune-frac"
+)
+@click.option(
+    "--out-path", required=True,
+    help="output JSON path for the prune-set"
+)
+@click.option(
+    "--task-id", default=None,
+    help="task ID in the HDF5; default: first available"
+)
 def solve(obs_path, prune_frac, prune_num, out_path, task_id):
-    """Solve the HOPE QP to find the optimal pruning set."""
+    """
+    Solve the HOPE QP for the optimal pruning set.
+    """
     from hope.solve import solve as _solve
     _solve(
-        obs_path, out_path,
-        prune_frac=prune_frac, prune_num=prune_num, task_id=task_id,
+        obs_path, out_path, prune_frac=prune_frac, prune_num=prune_num,
+        task_id=task_id,
     )
 
 
 @cli.command()
-@click.option("--obs-path", required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help="Path to HDF5 observations from calibration.")
-@click.option("--prune-frac", type=float, default=None,
-              help="Fraction of experts to prune per layer (0 < frac < 1); conflicts with `--prune-num`.")
-@click.option("--prune-num", type=int, default=None,
-              help="Number of experts to prune per layer; conflicts with `--prune-frac`.")
-@click.option("--out-path", required=True,
-              help="Output JSON path for the pruning set.")
-@click.option("--method", required=True,
-              type=click.Choice(["reap", "ean", "man", "freq"]),
-              help="First-order scoring method.")
-@click.option("--task-id", default=None,
-              help="Task ID in the HDF5 (default: first available).")
-def baselines(obs_path, prune_frac, prune_num, out_path, method, task_id):
-    """Compute first-order baseline pruning sets (REAP, EAN, MAN, FREQ)."""
+@click.option(
+    "--obs-path", required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to HDF5 observations from calibration"
+)
+@click.option(
+    "--prune-frac", type=float, default=None,
+    help="fraction of experts to prune per layer; conflicts with --prune-num"
+)
+@click.option(
+    "--prune-num", type=int, default=None,
+    help="number of experts to prune per layer; conflicts with --prune-frac"
+)
+@click.option(
+    "--out-path", required=True,
+    help="output JSON path for the prune-set"
+)
+@click.option(
+    "--method", required=True,
+    type=click.Choice(["reap", "ean", "man", "freq"]),
+    help="method of first-order scoring"
+)
+@click.option(
+    "--task-id", default=None,
+    help="task ID in the HDF5; default: first available"
+)
+def baselines(
+    obs_path, prune_frac, prune_num, out_path, method, task_id,
+):
+    """
+    Compute a first-order baseline pruning set.
+    """
     from hope.baselines import solve_baselines
     solve_baselines(
-        obs_path, out_path, method,
-        prune_frac=prune_frac, prune_num=prune_num, task_id=task_id,
+        obs_path, out_path, method, prune_frac=prune_frac, prune_num=prune_num,
+        task_id=task_id,
     )
 
 
 @cli.command()
-@click.option("--model-path", required=True,
-              type=click.Path(exists=True, file_okay=False),
-              help="Path to the original HuggingFace model.")
-@click.option("--pruneset-path", required=True,
-              type=click.Path(exists=True, dir_okay=False),
-              help="Path to JSON pruning set.")
-@click.option("--out-path", required=True,
-              help="Path to save the pruned model.")
+@click.option(
+    "--model-path", required=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="path to the original HuggingFace model"
+)
+@click.option(
+    "--pruneset-path", required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to JSON pruning set"
+)
+@click.option(
+    "--out-path", required=True,
+    help="path to save the pruned model"
+)
 def prune(model_path, pruneset_path, out_path):
-    """Apply a pruning set to a model checkpoint and save the pruned model."""
+    """
+    Apply a pruning set and save the pruned model.
+    """
     from hope.prune import prune_model
     prune_model(model_path, pruneset_path, out_path)

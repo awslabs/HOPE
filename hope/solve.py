@@ -1,8 +1,8 @@
 """
-HOPE QP solver.
+HOPE quadratic-program solver.
 
-Builds the expert interaction matrix F from calibration observations and
-solves a binary quadratic program per layer to find the optimal pruning set.
+Builds the expert interaction matrix F from calibration observations and solves
+a binary quadratic program per layer to find the optimal pruning set.
 """
 
 import os
@@ -14,15 +14,13 @@ import h5py
 
 def build_f_matrix(obs_hdf5, task_id, layer_i):
     """
-    Build the F-matrix for a given task and layer.
-
-    Args:
-        obs_hdf5: Open h5py File handle.
-        task_id: Task group name in the HDF5.
-        layer_i: Layer index (int).
-
-    Returns:
-        An E x E numpy array (the F-matrix for this layer).
+    Builds the F-matrix for a given task and layer.
+    Arguments:
+        `obs_hdf5`: open h5py File handle
+        `task_id`: task group name in the HDF5
+        `layer_i`: layer index (int)
+    Returns an E x E NumPy array (the F-matrix for this layer), where E is the
+    number of experts per layer.
     """
     layer_group = obs_hdf5[task_id]["layer_%d" % layer_i]
     unnorm_matrix = layer_group["norm_prod_sums"][:]
@@ -36,16 +34,16 @@ def build_f_matrix(obs_hdf5, task_id, layer_i):
 
 def solve_qp(matrix, num_ones):
     """
-    Solve the binary quadratic program: minimize b^T M b such that b has
-    ``num_ones`` entries equal to 1. Performs a continuous relaxation solved
-    by SLSQP, then rounds to binary.
-
-    Args:
-        matrix: An E x E numpy array M to solve the QP over.
-        num_ones: The number of 1s in the desired binary solution.
-
-    Returns:
-        Tuple of (b_binary, b_continuous, obj_binary, obj_continuous).
+    Solves the binary quadratic program:
+        Minimize `b^T M b` such that b has `num_ones` entries equal to 1.
+    Performs a continuous relaxation solved by SLSQP, then rounds solutions to
+    binary.
+    Arguments:
+        `matrix`: an E x E NumPy array `M` to solve the QP over
+        `num_ones`: the number of 1s in the desired binary solution
+    Returns a tuple of: the binary (rounded) solution `b`, the continuous
+    solution of `b`, the binary objective value, and the continuous objective
+    value.
     """
     n = matrix.shape[0]
     assert matrix.shape == (n, n)
@@ -77,24 +75,20 @@ def solve_qp(matrix, num_ones):
 
 
 def solve(
-    obs_path,
-    out_path,
-    prune_frac=None,
-    prune_num=None,
-    task_id=None,
+    obs_path, out_path, prune_frac=None, prune_num=None, task_id=None
 ):
     """
-    End-to-end HOPE solver: build F-matrices, solve per-layer QPs, save
-    the pruning set.
-
-    Args:
-        obs_path: Path to HDF5 observations from calibration.
-        out_path: Path to save the output JSON pruning set.
-        prune_frac: Fraction of experts to prune per layer (0 < frac < 1);
+    Starting from the HDF5 observations collected via calibration, constructs
+    the F-matrices for each layer, solves the per-layer QPs, and saves the
+    prune-set.
+    Arguments:
+        `obs_path`: path to HDF5 observations from calibration
+        `out_path`: path to save the output JSON pruning set
+        `prune_frac`: fraction of experts to prune per layer (0 < frac < 1);
             conflicts with `prune_num`
-        prune_num: Number of experts to prune per layer (positive int);
-            conflicts with `prune_frac`.
-        task_id: Task ID in the HDF5. If None, uses the first available.
+        `prune_num`: number of experts to prune per layer (positive int);
+            conflicts with `prune_frac`
+        `task_id`: task ID in the HDF5; if None, uses the first available
     """
     if (prune_frac is None) == (prune_num is None):
         raise ValueError(

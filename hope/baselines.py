@@ -1,8 +1,8 @@
 """
 First-order expert pruning baselines.
 
-Computes REAP, EAN, MAN, and frequency-based pruning sets from the same
-HDF5 observations collected by the HOPE calibration step.
+Computes REAP, EAN, MAN, and frequency-based pruning sets from the same HDF5
+observations collected by the HOPE calibration step.
 """
 
 import os
@@ -15,26 +15,23 @@ def solve_baselines(
     obs_path, out_path, method, prune_frac=None, prune_num=None, task_id=None
 ):
     """
-    Compute a first-order baseline pruning set.
-
+    Computes a first-order baseline pruning set.
     Scoring criteria:
         - freq: Number of tokens routed to expert k.
         - ean: Sum of ||f_k(x)|| over active tokens (Expert Activation Norm).
         - man: Mean of ||f_k(x)|| over active tokens.
         - reap: Mean of g_k(x) * ||f_k(x)|| over active tokens
             (Router-weighted Expert Activation Pruning).
-
     Experts with the lowest scores are pruned.
-
-    Args:
-        obs_path: Path to HDF5 observations from calibration.
-        out_path: Path to save the output JSON pruning set.
-        method: One of 'reap', 'ean', 'man', 'freq'.
-        prune_frac: Fraction of experts to prune per layer (0 < frac < 1);
+    Arguments:
+        `obs_path`: path to HDF5 observations from calibration
+        `out_path`: path to save the output JSON pruning set
+        `method`: one of 'reap', 'ean', 'man', 'freq'
+        `prune_frac`: fraction of experts to prune per layer (0 < frac < 1);
             conflicts with `prune_num`
-        prune_num: Number of experts to prune per layer (positive int);
-            conflicts with `prune_frac`.
-        task_id: Task ID in the HDF5. If None, uses the first available.
+        `prune_num`: number of experts to prune per layer (positive int);
+            conflicts with `prune_frac`
+        `task_id`: task ID in the HDF5; if None, uses the first available
     """
     assert method in ("reap", "ean", "man", "freq")
 
