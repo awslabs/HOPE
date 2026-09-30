@@ -313,9 +313,8 @@ def calibrate(
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     print("Saving observations to %s ..." % out_path)
     with h5py.File(out_path, "w") as f:
-        task_group = f.create_group("default")
         for layer_i, layer_stats in stats.items():
-            layer_group = task_group.create_group("layer_%d" % layer_i)
+            layer_group = f.create_group("layer_%d" % layer_i)
             for key, val in layer_stats.items():
                 layer_group.create_dataset(key, data=val)
 

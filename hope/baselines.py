@@ -12,7 +12,7 @@ import h5py
 
 
 def solve_baselines(
-    obs_path, out_path, method, prune_frac=None, prune_num=None, task_id=None
+    obs_path, out_path, method, prune_frac=None, prune_num=None
 ):
     """
     Computes a first-order baseline pruning set.
@@ -31,7 +31,6 @@ def solve_baselines(
             conflicts with `prune_num`
         `prune_num`: number of experts to prune per layer (positive int);
             conflicts with `prune_frac`
-        `task_id`: task ID in the HDF5; if None, uses the first available
     """
     assert method in ("reap", "ean", "man", "freq")
 
@@ -41,12 +40,8 @@ def solve_baselines(
         )
 
     with h5py.File(obs_path, "r") as f:
-        if task_id is None:
-            task_id = list(f.keys())[0]
-        task_group = f[task_id]
-
         layer_keys = sorted(
-            [k for k in task_group.keys()
+            [k for k in f.keys()
              if k.startswith("layer_") and "-" not in k],
             key=lambda k: int(k.split("_")[1]),
         )
@@ -54,7 +49,7 @@ def solve_baselines(
         pruneset = {}
         for layer_key in layer_keys:
             layer_i = int(layer_key.split("_")[1])
-            layer_group = task_group[layer_key]
+            layer_group = f[layer_key]
 
             # Per-expert frequency (diagonal of coselect_counts)
             freq = np.diag(

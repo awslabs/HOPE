@@ -94,18 +94,13 @@ def calibrate(
     "--out-path", required=True,
     help="output JSON path for the prune-set"
 )
-@click.option(
-    "--task-id", default=None,
-    help="task ID in the HDF5; default: first available"
-)
-def solve(obs_path, prune_frac, prune_num, out_path, task_id):
+def solve(obs_path, prune_frac, prune_num, out_path):
     """
     Solve the HOPE QP for the optimal pruning set.
     """
     from hope.solve import solve as _solve
     _solve(
-        obs_path, out_path, prune_frac=prune_frac, prune_num=prune_num,
-        task_id=task_id,
+        obs_path, out_path, prune_frac=prune_frac, prune_num=prune_num
     )
 
 
@@ -132,20 +127,13 @@ def solve(obs_path, prune_frac, prune_num, out_path, task_id):
     type=click.Choice(["reap", "ean", "man", "freq"]),
     help="method of first-order scoring"
 )
-@click.option(
-    "--task-id", default=None,
-    help="task ID in the HDF5; default: first available"
-)
-def baselines(
-    obs_path, prune_frac, prune_num, out_path, method, task_id,
-):
+def baselines(obs_path, prune_frac, prune_num, out_path, method):
     """
     Compute a first-order baseline pruning set.
     """
     from hope.baselines import solve_baselines
     solve_baselines(
-        obs_path, out_path, method, prune_frac=prune_frac, prune_num=prune_num,
-        task_id=task_id,
+        obs_path, out_path, method, prune_frac=prune_frac, prune_num=prune_num
     )
 
 

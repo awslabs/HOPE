@@ -12,17 +12,16 @@ import scipy.optimize
 import h5py
 
 
-def build_f_matrix(obs_hdf5, task_id, layer_i):
+def build_f_matrix(obs_hdf5, layer_i):
     """
-    Builds the F-matrix for a given task and layer.
+    Builds the F-matrix for a given layer.
     Arguments:
         `obs_hdf5`: open h5py File handle
-        `task_id`: task group name in the HDF5
         `layer_i`: layer index (int)
     Returns an E x E NumPy array (the F-matrix for this layer), where E is the
     number of experts per layer.
     """
-    layer_group = obs_hdf5[task_id]["layer_%d" % layer_i]
+    layer_group = obs_hdf5["layer_%d" % layer_i]
     unnorm_matrix = layer_group["norm_prod_sums"][:]
 
     counts = layer_group["coselect_counts"][:].astype(np.float64)
@@ -74,9 +73,7 @@ def solve_qp(matrix, num_ones):
     return b_bin, b_cont, obj_bin, obj_cont
 
 
-def solve(
-    obs_path, out_path, prune_frac=None, prune_num=None, task_id=None
-):
+def solve(obs_path, out_path, prune_frac=None, prune_num=None):
     """
     Starting from the HDF5 observations collected via calibration, constructs
     the F-matrices for each layer, solves the per-layer QPs, and saves the
@@ -88,7 +85,6 @@ def solve(
             conflicts with `prune_num`
         `prune_num`: number of experts to prune per layer (positive int);
             conflicts with `prune_frac`
-        `task_id`: task ID in the HDF5; if None, uses the first available
     """
     if (prune_frac is None) == (prune_num is None):
         raise ValueError(
@@ -96,22 +92,13 @@ def solve(
         )
 
     with h5py.File(obs_path, "r") as f:
-        available_tasks = list(f.keys())
-        if task_id is None:
-            task_id = available_tasks[0]
-        elif task_id not in available_tasks:
-            raise ValueError(
-                "Task '%s' not found. Available: %s"
-                % (task_id, available_tasks)
-            )
-
         # Discover layers
         layer_keys = [
-            k for k in f[task_id].keys()
+            k for k in f.keys()
              if k.startswith("layer_") and "-" not in k
         ]
         num_layers = len(layer_keys)
-        num_experts = f[task_id]["layer_0"]["norm_prod_sums"].shape[0]
+        num_experts = f["layer_0"]["norm_prod_sums"].shape[0]
 
         if prune_frac is not None:
             assert 0 < prune_frac < 1
@@ -129,14 +116,13 @@ def solve(
             "obs_path": obs_path,
             "prune_frac": prune_frac,
             "prune_num": prune_num,
-            "task_id": task_id,
             "num_layers": num_layers,
             "num_experts": num_experts,
             "layers": {},
         }
 
         for layer_i in range(num_layers):
-            matrix = build_f_matrix(f, task_id, layer_i)
+            matrix = build_f_matrix(f, layer_i)
             print("Solving QP for layer %d ..." % layer_i)
             b_bin, b_cont, obj_bin, obj_cont = solve_qp(matrix, num_prune)
 
