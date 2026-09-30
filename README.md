@@ -16,8 +16,8 @@ pip install torch --index-url https://download.pytorch.org/whl/cu124
 Then install HOPE:
 
 ```bash
-git clone https://github.com/awslabs/hybrid-model-factory.git
-cd hybrid-model-factory/examples/research/HOPE
+git clone https://github.com/awslabs/HOPE.git
+cd HOPE
 pip install -e .
 ```
 
@@ -38,7 +38,7 @@ hope calibrate \
 
 Where `prompts.txt` has one prompt (string) per line. Alternatively, use `--prompts` to specify a `.json` file which contains a list of strings, or a list of lists of ints (pre-tokenized token IDs).
 
-This produces an HDF5 file which contains the statistics needed to construct the F matrix (expert usage and co-usage statistics).
+This produces an HDF5 file which contains the statistics needed to construct the F-matrix (expert usage and co-usage statistics).
 
 ### 2. Solve: Find the optimal pruning set
 
