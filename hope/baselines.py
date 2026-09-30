@@ -11,7 +11,9 @@ import numpy as np
 import h5py
 
 
-def solve_baselines(obs_path, prune_frac, out_path, method, task_id=None):
+def solve_baselines(
+    obs_path, out_path, method, prune_frac=None, prune_num=None, task_id=None
+):
     """
     Compute a first-order baseline pruning set.
 
@@ -26,13 +28,20 @@ def solve_baselines(obs_path, prune_frac, out_path, method, task_id=None):
 
     Args:
         obs_path: Path to HDF5 observations from calibration.
-        prune_frac: Fraction of experts to prune per layer (0 < frac < 1),
-            or an integer count to prune per layer.
         out_path: Path to save the output JSON pruning set.
         method: One of 'reap', 'ean', 'man', 'freq'.
+        prune_frac: Fraction of experts to prune per layer (0 < frac < 1);
+            conflicts with `prune_num`
+        prune_num: Number of experts to prune per layer (positive int);
+            conflicts with `prune_frac`.
         task_id: Task ID in the HDF5. If None, uses the first available.
     """
     assert method in ("reap", "ean", "man", "freq")
+
+    if (prune_frac is None) == (prune_num is None):
+        raise ValueError(
+            "Exactly one of `prune_frac` or `prune_num` must be provided"
+        )
 
     with h5py.File(obs_path, "r") as f:
         if task_id is None:
@@ -67,10 +76,11 @@ def solve_baselines(obs_path, prune_frac, out_path, method, task_id=None):
                 )
 
             num_experts = len(scores)
-            num_prune = (
-                int(num_experts * prune_frac) if prune_frac < 1
-                else int(prune_frac)
-            )
+            if prune_frac is not None:
+                assert 0 < prune_frac < 1
+                num_prune = int(num_experts * prune_frac)
+            else:
+                num_prune = prune_num
             assert 0 < num_prune < num_experts
 
             indices = np.argsort(scores)

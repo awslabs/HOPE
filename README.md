@@ -42,12 +42,19 @@ This produces an HDF5 file which contains the statistics needed to construct the
 
 ### 2. Solve: Find the optimal pruning set
 
-Solve the HOPE quadratic program to determine which experts to prune:
+Solve the HOPE quadratic program to determine which experts to prune. The number of experts to prune can be specified as either a fraction (`--prune-frac`) or an integer count (`--prune-num`):
 
 ```bash
+# Prune 25% of experts per layer:
 hope solve \
     --obs-path observations.h5 \
-    --prune-frac 0.5 \
+    --prune-frac 0.25 \
+    --out-path pruneset.json
+
+# Or prune exactly 64 experts per layer:
+hope solve \
+    --obs-path observations.h5 \
+    --prune-num 64 \
     --out-path pruneset.json
 ```
 
@@ -80,7 +87,7 @@ HOPE's calibration data also supports several first-order baselines (REAP, EAN, 
 ```bash
 hope baselines \
     --obs-path observations.h5 \
-    --prune-frac 0.5 \
+    --prune-frac 0.25 \
     --method reap \
     --out-path pruneset_reap.json
 ```
@@ -95,8 +102,10 @@ from hope.prune import prune_model
 # Step 1
 calibrate("path/to/model", ["prompt 1", "prompt 2", ...], "obs.h5")
 
-# Step 2
-solve("obs.h5", prune_frac=0.5, out_path="pruneset.json")
+# Step 2: prune by fraction or by count
+solve("obs.h5", "pruneset.json", prune_frac=0.25)
+# OR
+solve("obs.h5", "pruneset.json", prune_num=64)
 
 # Step 3
 prune_model("path/to/model", "pruneset.json", "path/to/pruned")

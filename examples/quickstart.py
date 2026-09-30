@@ -85,7 +85,7 @@ def main():
     print("\n[2/3] Solving HOPE QP (pruning %.0f%% of experts)..." %
           (args.prune_frac * 100))
     from hope.solve import solve
-    solve(obs_path, args.prune_frac, pruneset_path)
+    solve(obs_path, pruneset_path, prune_frac=args.prune_frac)
 
     # Step 3: Prune — apply the pruning set to the model
     print("\n[3/3] Pruning model...")

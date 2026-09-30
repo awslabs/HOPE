@@ -78,8 +78,9 @@ def solve_qp(matrix, num_ones):
 
 def solve(
     obs_path,
-    prune_frac,
     out_path,
+    prune_frac=None,
+    prune_num=None,
     task_id=None,
 ):
     """
@@ -88,11 +89,18 @@ def solve(
 
     Args:
         obs_path: Path to HDF5 observations from calibration.
-        prune_frac: Fraction of experts to prune per layer (0 < frac < 1),
-            or an integer count to prune per layer.
         out_path: Path to save the output JSON pruning set.
+        prune_frac: Fraction of experts to prune per layer (0 < frac < 1);
+            conflicts with `prune_num`
+        prune_num: Number of experts to prune per layer (positive int);
+            conflicts with `prune_frac`.
         task_id: Task ID in the HDF5. If None, uses the first available.
     """
+    if (prune_frac is None) == (prune_num is None):
+        raise ValueError(
+            "Exactly one of `prune_frac` or `prune_num` must be provided"
+        )
+
     with h5py.File(obs_path, "r") as f:
         available_tasks = list(f.keys())
         if task_id is None:
@@ -111,10 +119,11 @@ def solve(
         num_layers = len(layer_keys)
         num_experts = f[task_id]["layer_0"]["norm_prod_sums"].shape[0]
 
-        num_prune = (
-            int(prune_frac * num_experts) if prune_frac < 1
-            else int(prune_frac)
-        )
+        if prune_frac is not None:
+            assert 0 < prune_frac < 1
+            num_prune = int(prune_frac * num_experts)
+        else:
+            num_prune = prune_num
         assert 0 < num_prune < num_experts
 
         print("Pruning %d/%d experts per layer across %d layers" % (
@@ -125,6 +134,7 @@ def solve(
         log_data = {
             "obs_path": obs_path,
             "prune_frac": prune_frac,
+            "prune_num": prune_num,
             "task_id": task_id,
             "num_layers": num_layers,
             "num_experts": num_experts,
